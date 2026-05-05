@@ -1,1459 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 六年级科学三语小游戏 | Year 6 Science Trilingual Games | Sains Tahun 6 Permainan Tiga Bahasa</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+import streamlit as st
+import random
 
-        body {
-            background: linear-gradient(145deg, #1a2980 0%, #26d0ce 100%);
-            min-height: 100vh;
-            padding: 15px;
-        }
+st.set_page_config(page_title="六年级科学三语小游戏", page_icon="🧪", layout="wide")
 
-        .game-wrapper {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 50px;
-            padding: 25px;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
-        }
+# 三语题库（简化版）
+QUESTIONS = [
+    {
+        "id": 1,
+        "zh": "男性生殖器官中，哪个器官产生精子？",
+        "en": "Which male reproductive organ produces sperms?",
+        "ms": "Organ pembiakan lelaki yang manakah menghasilkan sperma?",
+        "options_zh": ["阴茎", "睾丸", "输精管", "前列腺"],
+        "options_en": ["Penis", "Testis", "Vas deferens", "Prostate"],
+        "options_ms": ["Zakar", "Testis", "Vas deferens", "Prostat"],
+        "correct": 1,
+        "explanation_zh": "睾丸产生精子和雄性激素",
+        "explanation_en": "Testis produces sperms and male hormones",
+        "explanation_ms": "Testis menghasilkan sperma dan hormon lelaki"
+    },
+    {
+        "id": 2,
+        "zh": "受精作用发生在女性身体的哪个部位？",
+        "en": "Where does fertilisation occur in the female body?",
+        "ms": "Di manakah persenyawaan berlaku dalam badan perempuan?",
+        "options_zh": ["卵巢", "子宫", "输卵管", "阴道"],
+        "options_en": ["Ovary", "Uterus", "Fallopian tube", "Vagina"],
+        "options_ms": ["Ovari", "Uterus", "Tiub fallopio", "Faraj"],
+        "correct": 2,
+        "explanation_zh": "受精发生在输卵管内",
+        "explanation_en": "Fertilisation occurs in the fallopian tube",
+        "explanation_ms": "Persenyawaan berlaku dalam tiub fallopio"
+    }
+]
 
-        /* 三语主标题 */
-        .main-title {
-            text-align: center;
-            margin-bottom: 25px;
-        }
+# 初始化session state
+if 'quiz_index' not in st.session_state:
+    st.session_state.quiz_index = 0
+if 'quiz_score' not in st.session_state:
+    st.session_state.quiz_score = 0
+if 'quiz_answered' not in st.session_state:
+    st.session_state.quiz_answered = False
+if 'selected_answer' not in st.session_state:
+    st.session_state.selected_answer = None
 
-        .title-box {
-            background: linear-gradient(145deg, #fc4a1a, #f7b733);
-            padding: 25px;
-            border-radius: 60px;
-            color: white;
-        }
+# 标题
+st.markdown("""
+<div style="text-align: center; background: linear-gradient(145deg, #fc4a1a, #f7b733); padding: 30px; border-radius: 50px; margin-bottom: 30px;">
+    <h1 style="color: white;">🧪 六年级科学三语小游戏 🧪</h1>
+    <p style="color: white;">选择题 • 对错题 • 连线题 • 填空题 | MCQ • True/False • Matching • Fill</p>
+</div>
+""", unsafe_allow_html=True)
 
-        .title-box h1 {
-            font-size: 2.2rem;
-            margin-bottom: 15px;
-        }
+# 侧边栏
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/000000/scientist.png", width=80)
+    student_name = st.text_input("👤 姓名 / Name / Nama", placeholder="请输入您的姓名")
+    st.markdown("---")
+    st.markdown("### 📊 成绩统计")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("⭐ 得分", st.session_state.quiz_score)
+    with col2:
+        questions_done = st.session_state.quiz_index
+        st.metric("📝 已完成", f"{questions_done}/{len(QUESTIONS)}")
+    
+    if st.session_state.quiz_index > 0:
+        percentage = (st.session_state.quiz_score / st.session_state.quiz_index) * 100 if st.session_state.quiz_index > 0 else 0
+        st.progress(min(percentage/100, 1.0))
+        st.metric("📈 正确率", f"{percentage:.1f}%")
 
-        .title-langs {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
+# 语言选择
+lang = st.radio("选择语言 / Select Language / Pilih Bahasa", ["中文", "English", "Bahasa Malaysia"], horizontal=True)
+lang_map = {"中文": "zh", "English": "en", "Bahasa Malaysia": "ms"}
+current_lang = lang_map[lang]
 
-        .title-langs span {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-size: 1rem;
-        }
+# 显示三语标签
+st.markdown("""
+<div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
+    <span style="background: #e55039; color: white; padding: 5px 25px; border-radius: 30px;">🇨🇳 中文</span>
+    <span style="background: #4a69bd; color: white; padding: 5px 25px; border-radius: 30px;">🇬🇧 English</span>
+    <span style="background: #f6b93b; color: white; padding: 5px 25px; border-radius: 30px;">🇲🇾 Bahasa Malaysia</span>
+</div>
+""", unsafe_allow_html=True)
 
-        /* 语言切换器 */
-        .lang-switcher {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .lang-btn {
-            padding: 15px 35px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: white;
-            border: 3px solid transparent;
-        }
-
-        .lang-btn.zh { background: linear-gradient(145deg, #e55039, #b71540); }
-        .lang-btn.en { background: linear-gradient(145deg, #4a69bd, #1e3799); }
-        .lang-btn.ms { background: linear-gradient(145deg, #f6b93b, #e58e26); }
-        .lang-btn:hover { transform: translateY(-5px); }
-        .lang-btn.active { border-color: white; box-shadow: 0 0 0 4px #333; }
-
-        /* 游戏类型选择器 */
-        .game-type-selector {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .type-card {
-            background: white;
-            border-radius: 30px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            border: 3px solid transparent;
-        }
-
-        .type-card:hover { transform: translateY(-8px); }
-        .type-card.active { border-color: #f7b733; background: #fff9e6; }
-        .type-icon { font-size: 2.5rem; margin-bottom: 10px; }
-        .type-title { font-weight: bold; font-size: 1.2rem; margin: 10px 0; }
-
-        /* 统计面板 */
-        .stats-panel {
-            background: linear-gradient(145deg, #2c3e50, #34495e);
-            border-radius: 40px;
-            padding: 20px 30px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .stats-left { display: flex; gap: 30px; flex-wrap: wrap; }
-        .stat-item { text-align: center; }
-        .stat-label { font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px; }
-        .stat-value { font-size: 2rem; font-weight: bold; background: rgba(255,255,255,0.1); padding: 5px 20px; border-radius: 40px; }
-
-        .progress-container { display: flex; align-items: center; gap: 15px; }
-        .progress-bar-container { width: 200px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 30px; overflow: hidden; }
-        .progress-bar { height: 100%; background: linear-gradient(90deg, #ffd700, #ffa500); transition: width 0.5s; width: 0%; }
-        .percentage-text { font-size: 2rem; font-weight: bold; color: #ffd700; }
-
-        /* 游戏主区域 */
-        .game-area {
-            background: #f8f9fa;
-            border-radius: 40px;
-            padding: 25px;
-            min-height: 500px;
-        }
-
-        .game-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #dee2e6;
-        }
-
-        .current-game h3 { font-size: 1.8rem; color: #2c3e50; }
-        .score-box {
-            background: linear-gradient(145deg, #fc4a1a, #f7b733);
-            color: white;
-            padding: 15px 35px;
-            border-radius: 50px;
-            font-weight: bold;
-            font-size: 1.3rem;
-        }
-
-        /* 题目计数 */
-        .question-counter {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-            color: #666;
-        }
-        .counter-highlight { font-weight: bold; color: #fc4a1a; font-size: 1.5rem; }
-
-        /* 三语标签 */
-        .triple-lang-tag {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            justify-content: center;
-        }
-        .triple-lang-tag span { padding: 5px 15px; border-radius: 25px; font-size: 0.9rem; color: white; }
-        .tag-zh { background: #e55039; }
-        .tag-en { background: #4a69bd; }
-        .tag-ms { background: #f6b93b; }
-
-        /* 选择题样式 */
-        .quiz-container { max-width: 900px; margin: 0 auto; }
-        .question-card { background: white; border-radius: 30px; padding: 25px; margin-bottom: 20px; }
-        .question-text { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; color: #2c3e50; }
-        .question-langs { 
-            display: flex; 
-            gap: 10px; 
-            margin-bottom: 20px; 
-            padding: 15px; 
-            background: #f0f8ff; 
-            border-radius: 20px;
-            flex-wrap: wrap;
-        }
-        .question-langs div { 
-            flex: 1; 
-            min-width: 200px;
-            padding: 10px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .lang-label { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
-        .lang-label.zh-label { color: #e55039; }
-        .lang-label.en-label { color: #4a69bd; }
-        .lang-label.ms-label { color: #f6b93b; }
-        
-        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .option { 
-            padding: 18px; 
-            background: #f8f9fa; 
-            border-radius: 25px; 
-            cursor: pointer; 
-            text-align: center; 
-            border: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        .option:hover { background: #e3f2fd; transform: translateY(-3px); }
-        .option.selected { background: #bbdefb; border-color: #1976d2; }
-        .option.correct { background: #c8e6c9; border-color: #388e3c; }
-        .option.wrong { background: #ffcdd2; border-color: #d32f2f; }
-        .option-langs { font-size: 0.8rem; color: #666; margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-
-        /* 对错题样式 */
-        .tf-container { max-width: 800px; margin: 0 auto; }
-        .tf-card { background: white; border-radius: 30px; padding: 25px; }
-        .tf-statement { 
-            font-size: 1.3rem; 
-            padding: 25px; 
-            background: #f8f9fa; 
-            border-radius: 25px; 
-            text-align: center; 
-            margin: 20px 0;
-            font-weight: 500;
-        }
-        .tf-buttons { display: flex; gap: 20px; justify-content: center; }
-        .tf-btn { 
-            padding: 15px 40px; 
-            border: none; 
-            border-radius: 50px; 
-            font-size: 1.2rem; 
-            font-weight: bold; 
-            cursor: pointer; 
-            color: white;
-            transition: all 0.3s;
-        }
-        .tf-btn.true { background: #4caf50; }
-        .tf-btn.false { background: #f44336; }
-        .tf-btn:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .tf-btn.selected { box-shadow: 0 0 0 4px #ffd700; }
-
-        /* 连线题样式 */
-        .matching-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .matching-col { background: white; border-radius: 30px; padding: 20px; }
-        .col-title { 
-            text-align: center; 
-            font-size: 1.3rem; 
-            margin-bottom: 20px; 
-            padding-bottom: 10px; 
-            border-bottom: 3px solid #dee2e6;
-            color: #2c3e50;
-        }
-        .match-item { 
-            padding: 18px; 
-            margin: 12px 0; 
-            background: #f8f9fa; 
-            border-radius: 25px; 
-            cursor: pointer; 
-            text-align: center; 
-            border: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        .match-item:hover { background: #e3f2fd; transform: translateX(10px); }
-        .match-item.selected { background: #bbdefb; border-color: #1976d2; }
-        .match-item.matched { background: #c8e6c9; border-color: #388e3c; cursor: default; }
-        .match-langs { font-size: 0.8rem; color: #666; margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
-
-        /* 填空题样式 */
-        .fill-container { max-width: 800px; margin: 0 auto; }
-        .fill-card { background: white; border-radius: 30px; padding: 25px; }
-        .fill-question { margin: 20px 0; font-size: 1.3rem; line-height: 2.5; }
-        .fill-blank { 
-            font-size: 1.4rem; 
-            font-weight: bold; 
-            color: #1976d2; 
-            text-decoration: underline; 
-            margin: 0 5px;
-            text-decoration-style: wavy;
-        }
-        .fill-input { 
-            width: 100%; 
-            padding: 15px; 
-            font-size: 1.1rem; 
-            border: 3px solid #dee2e6; 
-            border-radius: 40px; 
-            margin: 10px 0;
-            transition: all 0.3s;
-        }
-        .fill-input:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 4px rgba(25,118,210,0.1); }
-        .fill-input.correct { border-color: #388e3c; background: #c8e6c9; }
-        .fill-input.wrong { border-color: #d32f2f; background: #ffcdd2; }
-
-        /* 控制按钮 */
-        .game-controls { display: flex; gap: 15px; justify-content: center; margin-top: 25px; flex-wrap: wrap; }
-        .control-btn { 
-            padding: 15px 35px; 
-            border: none; 
-            border-radius: 50px; 
-            background: #2c3e50; 
-            color: white; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 1.1rem;
-            transition: all 0.3s;
-        }
-        .control-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .control-btn.check { background: #27ae60; }
-        .control-btn.next { background: #2980b9; }
-        .control-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .feedback { 
-            margin-top: 20px; 
-            padding: 20px; 
-            border-radius: 40px; 
-            text-align: center; 
-            font-weight: bold; 
-            font-size: 1.2rem; 
-            display: none; 
-        }
-        .feedback.show { display: block; }
-        .feedback.success { background: #c8e6c9; color: #2e7d32; border-left: 10px solid #388e3c; }
-        .feedback.error { background: #ffcdd2; color: #c62828; border-left: 10px solid #d32f2f; }
-
-        @media (max-width: 768px) {
-            .game-type-selector { grid-template-columns: 1fr 1fr; }
-            .options-grid { grid-template-columns: 1fr; }
-            .matching-container { grid-template-columns: 1fr; }
-            .stats-panel { flex-direction: column; }
-        }
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <div class="game-wrapper">
-        <!-- 三语主标题 -->
-        <div class="main-title">
-            <div class="title-box">
-                <h1>🎮 六年级科学三语小游戏 🎮</h1>
-                <div class="title-langs">
-                    <span>选择题(15) • 对错题(15) • 连线题(10) • 填空题(10)</span>
-                    <span>MCQ(15) • True/False(15) • Matching(10) • Fill(10)</span>
-                    <span>Pilihan(15) • Betul/Salah(15) • Padanan(10) • Isi(10)</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 语言切换器 -->
-        <div class="lang-switcher">
-            <button class="lang-btn zh active" data-lang="zh"><i class="fas fa-language"></i> 中文</button>
-            <button class="lang-btn en" data-lang="en"><i class="fas fa-language"></i> English</button>
-            <button class="lang-btn ms" data-lang="ms"><i class="fas fa-language"></i> Bahasa Malaysia</button>
-        </div>
-
-        <!-- 游戏类型选择 -->
-        <div class="game-type-selector">
-            <div class="type-card active" data-type="quiz">
-                <div class="type-icon">📝</div>
-                <div class="type-title">选择题<br><small>15题</small></div>
-            </div>
-            <div class="type-card" data-type="truefalse">
-                <div class="type-icon">✓✗</div>
-                <div class="type-title">对错题<br><small>15题</small></div>
-            </div>
-            <div class="type-card" data-type="matching">
-                <div class="type-icon">🔗</div>
-                <div class="type-title">连线题<br><small>10题</small></div>
-            </div>
-            <div class="type-card" data-type="fill">
-                <div class="type-icon">✏️</div>
-                <div class="type-title">填空题<br><small>10题</small></div>
-            </div>
-        </div>
-
-        <!-- 统计面板 -->
-        <div class="stats-panel">
-            <div class="stats-left">
-                <div class="stat-item"><div class="stat-label">✅ 正确 / Correct / Betul</div><div class="stat-value" id="correct-count">0</div></div>
-                <div class="stat-item"><div class="stat-label">❌ 错误 / Wrong / Salah</div><div class="stat-value" id="wrong-count">0</div></div>
-                <div class="stat-item"><div class="stat-label">📊 总题 / Total / Jumlah</div><div class="stat-value" id="total-count">0</div></div>
-            </div>
-            <div class="progress-container">
-                <div class="progress-bar-container"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
-                <div class="percentage-text" id="percentage">0%</div>
-            </div>
-        </div>
-
-        <!-- 游戏主区域 -->
-        <div class="game-area">
-            <div class="game-header">
-                <div class="current-game">
-                    <h3 id="current-game-title">选择题 | Multiple Choice | Pilihan Berganda</h3>
-                    <div class="question-counter" id="question-counter">第 <span class="counter-highlight" id="current-q">1</span> / <span id="total-q">15</span> 题</div>
-                </div>
-                <div class="score-box"><i class="fas fa-star"></i> <span id="score">0</span></div>
-            </div>
-
-            <!-- 三语标签提示 -->
-            <div class="triple-lang-tag">
-                <span class="tag-zh"><i class="fas fa-language"></i> 中文</span>
-                <span class="tag-en"><i class="fas fa-language"></i> English</span>
-                <span class="tag-ms"><i class="fas fa-language"></i> Bahasa Malaysia</span>
-            </div>
-
-            <div id="game-content" class="game-content"></div>
-            <div id="feedback" class="feedback"></div>
+# 获取当前题目
+if st.session_state.quiz_index < len(QUESTIONS):
+    q = QUESTIONS[st.session_state.quiz_index]
+    
+    # 显示当前题目（三语）
+    st.markdown(f"""
+    <div style="background: #f0f8ff; border-radius: 30px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div><strong style="color: #e55039;">🇨🇳 中文</strong><br>{q['zh']}</div>
+            <div><strong style="color: #4a69bd;">🇬🇧 English</strong><br>{q['en']}</div>
+            <div><strong style="color: #f6b93b;">🇲🇾 Bahasa Malaysia</strong><br>{q['ms']}</div>
         </div>
     </div>
-
-    <script>
-        // 当前语言和游戏类型
-        let currentLang = 'zh';
-        let currentGameType = 'quiz';
-        let score = 0;
-        
-        // 统计变量
-        let totalQuestions = 0;
-        let correctAnswers = 0;
-        let wrongAnswers = 0;
-        let answeredQuestions = new Set();
-
-        // ==================== 选择题题库 (15题) - 每题完整三语 ====================
-        const quizQuestions = [
-            {
-                id: 1,
-                question: {
-                    zh: "男性生殖器官中，哪个器官产生精子？",
-                    en: "Which male reproductive organ produces sperms?",
-                    ms: "Organ pembiakan lelaki yang manakah menghasilkan sperma?"
-                },
-                options: {
-                    zh: ["阴茎", "睾丸", "输精管", "前列腺"],
-                    en: ["Penis", "Testis", "Vas deferens", "Prostate"],
-                    ms: ["Zakar", "Testis", "Vas deferens", "Prostat"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "睾丸产生精子和雄性激素",
-                    en: "Testis produces sperms and male hormones",
-                    ms: "Testis menghasilkan sperma dan hormon lelaki"
-                }
-            },
-            {
-                id: 2,
-                question: {
-                    zh: "受精作用发生在女性身体的哪个部位？",
-                    en: "Where does fertilisation occur in the female body?",
-                    ms: "Di manakah persenyawaan berlaku dalam badan perempuan?"
-                },
-                options: {
-                    zh: ["卵巢", "子宫", "输卵管", "阴道"],
-                    en: ["Ovary", "Uterus", "Fallopian tube", "Vagina"],
-                    ms: ["Ovari", "Uterus", "Tiub fallopio", "Faraj"]
-                },
-                correct: 2,
-                explanation: {
-                    zh: "受精发生在输卵管内",
-                    en: "Fertilisation occurs in the fallopian tube",
-                    ms: "Persenyawaan berlaku dalam tiub fallopio"
-                }
-            },
-            {
-                id: 3,
-                question: {
-                    zh: "中枢神经系统包括哪些部分？",
-                    en: "What does the central nervous system consist of?",
-                    ms: "Apakah yang terkandung dalam sistem saraf pusat?"
-                },
-                options: {
-                    zh: ["脑和脊髓", "心脏和肺", "神经和肌肉", "骨骼和关节"],
-                    en: ["Brain and spinal cord", "Heart and lungs", "Nerves and muscles", "Bones and joints"],
-                    ms: ["Otak dan saraf tunjang", "Jantung dan paru-paru", "Saraf dan otot", "Tulang dan sendi"]
-                },
-                correct: 0,
-                explanation: {
-                    zh: "中枢神经系统由脑和脊髓组成",
-                    en: "CNS consists of brain and spinal cord",
-                    ms: "SSP terdiri daripada otak dan saraf tunjang"
-                }
-            },
-            {
-                id: 4,
-                question: {
-                    zh: "哪个器官产生卵子？",
-                    en: "Which organ produces eggs?",
-                    ms: "Organ yang manakah menghasilkan telur?"
-                },
-                options: {
-                    zh: ["子宫", "卵巢", "输卵管", "阴道"],
-                    en: ["Uterus", "Ovary", "Fallopian tube", "Vagina"],
-                    ms: ["Uterus", "Ovari", "Tiub fallopio", "Faraj"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "卵巢产生卵子和雌性激素",
-                    en: "Ovaries produce eggs and female hormones",
-                    ms: "Ovari menghasilkan telur dan hormon perempuan"
-                }
-            },
-            {
-                id: 5,
-                question: {
-                    zh: "胚胎在哪里发育？",
-                    en: "Where does the embryo develop?",
-                    ms: "Di manakah embrio berkembang?"
-                },
-                options: {
-                    zh: ["卵巢", "输卵管", "子宫", "阴道"],
-                    en: ["Ovary", "Fallopian tube", "Uterus", "Vagina"],
-                    ms: ["Ovari", "Tiub fallopio", "Uterus", "Faraj"]
-                },
-                correct: 2,
-                explanation: {
-                    zh: "胚胎在子宫内发育",
-                    en: "Embryo develops in the uterus",
-                    ms: "Embrio berkembang dalam uterus"
-                }
-            },
-            {
-                id: 6,
-                question: {
-                    zh: "以下哪项是男性生殖器官？",
-                    en: "Which is a male reproductive organ?",
-                    ms: "Yang manakah organ pembiakan lelaki?"
-                },
-                options: {
-                    zh: ["卵巢", "输卵管", "睾丸", "子宫"],
-                    en: ["Ovary", "Fallopian tube", "Testis", "Uterus"],
-                    ms: ["Ovari", "Tiub fallopio", "Testis", "Uterus"]
-                },
-                correct: 2,
-                explanation: {
-                    zh: "睾丸是男性生殖器官",
-                    en: "Testis is a male reproductive organ",
-                    ms: "Testis adalah organ pembiakan lelaki"
-                }
-            },
-            {
-                id: 7,
-                question: {
-                    zh: "精子和卵子结合的过程称为？",
-                    en: "The process of sperm and egg combining is called?",
-                    ms: "Proses sperma dan telur bergabung dipanggil?"
-                },
-                options: {
-                    zh: ["排卵", "受精", "着床", "分娩"],
-                    en: ["Ovulation", "Fertilisation", "Implantation", "Birth"],
-                    ms: ["Ovulasi", "Persenyawaan", "Penanaman", "Kelahiran"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "受精是精子和卵子结合",
-                    en: "Fertilisation is the union of sperm and egg",
-                    ms: "Persenyawaan adalah gabungan sperma dan telur"
-                }
-            },
-            {
-                id: 8,
-                question: {
-                    zh: "周围神经系统的主要功能是？",
-                    en: "Main function of peripheral nervous system?",
-                    ms: "Fungsi utama sistem saraf periferi?"
-                },
-                options: {
-                    zh: ["控制思维", "连接中枢神经系统和身体", "产生激素", "消化食物"],
-                    en: ["Control thinking", "Connect CNS to body", "Produce hormones", "Digest food"],
-                    ms: ["Kawal pemikiran", "Sambungkan SSP ke badan", "Hasilkan hormon", "Cerna makanan"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "周围神经系统连接中枢神经系统和身体各部位",
-                    en: "PNS connects CNS to the rest of the body",
-                    ms: "SSP menyambungkan SSP ke seluruh badan"
-                }
-            },
-            {
-                id: 9,
-                question: {
-                    zh: "精子是在哪里产生的？",
-                    en: "Where are sperms produced?",
-                    ms: "Di manakah sperma dihasilkan?"
-                },
-                options: {
-                    zh: ["阴茎", "睾丸", "输精管", "附睾"],
-                    en: ["Penis", "Testis", "Vas deferens", "Epididymis"],
-                    ms: ["Zakar", "Testis", "Vas deferens", "Epididimis"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "精子在睾丸中产生",
-                    en: "Sperms are produced in the testis",
-                    ms: "Sperma dihasilkan dalam testis"
-                }
-            },
-            {
-                id: 10,
-                question: {
-                    zh: "以下哪项不是女性生殖器官？",
-                    en: "Which is NOT a female reproductive organ?",
-                    ms: "Yang manakah BUKAN organ pembiakan perempuan?"
-                },
-                options: {
-                    zh: ["卵巢", "子宫", "阴道", "阴茎"],
-                    en: ["Ovary", "Uterus", "Vagina", "Penis"],
-                    ms: ["Ovari", "Uterus", "Faraj", "Zakar"]
-                },
-                correct: 3,
-                explanation: {
-                    zh: "阴茎是男性生殖器官",
-                    en: "Penis is a male reproductive organ",
-                    ms: "Zakar adalah organ pembiakan lelaki"
-                }
-            },
-            {
-                id: 11,
-                question: {
-                    zh: "受精卵发育的早期阶段称为？",
-                    en: "The early stage of fertilised egg development is called?",
-                    ms: "Peringkat awal perkembangan telur yang disenyawakan dipanggil?"
-                },
-                options: {
-                    zh: ["胎儿", "胚胎", "婴儿", "幼儿"],
-                    en: ["Fetus", "Embryo", "Baby", "Toddler"],
-                    ms: ["Janin", "Embrio", "Bayi", "Kanak-kanak"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "胚胎是受精卵发育的早期阶段",
-                    en: "Embryo is the early stage of development",
-                    ms: "Embrio adalah peringkat awal perkembangan"
-                }
-            },
-            {
-                id: 12,
-                question: {
-                    zh: "脊髓属于哪个系统？",
-                    en: "Which system does the spinal cord belong to?",
-                    ms: "Saraf tunjang tergolong dalam sistem yang mana?"
-                },
-                options: {
-                    zh: ["呼吸系统", "消化系统", "神经系统", "循环系统"],
-                    en: ["Respiratory", "Digestive", "Nervous", "Circulatory"],
-                    ms: ["Pernafasan", "Pencernaan", "Saraf", "Peredaran"]
-                },
-                correct: 2,
-                explanation: {
-                    zh: "脊髓属于中枢神经系统",
-                    en: "Spinal cord is part of the central nervous system",
-                    ms: "Saraf tunjang adalah sebahagian daripada sistem saraf pusat"
-                }
-            },
-            {
-                id: 13,
-                question: {
-                    zh: "人类繁殖的重要性是什么？",
-                    en: "What is the importance of human reproduction?",
-                    ms: "Apakah kepentingan pembiakan manusia?"
-                },
-                options: {
-                    zh: ["增加体重", "延续物种", "增加身高", "增强体力"],
-                    en: ["Increase weight", "Continue species", "Increase height", "Increase strength"],
-                    ms: ["Tambah berat", "Teruskan spesies", "Tambah tinggi", "Tambah kekuatan"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "繁殖确保人类物种延续",
-                    en: "Reproduction ensures species continuation",
-                    ms: "Pembiakan memastikan spesies berterusan"
-                }
-            },
-            {
-                id: 14,
-                question: {
-                    zh: "卵子是从哪里释放出来的？",
-                    en: "Where is the egg released from?",
-                    ms: "Dari manakah telur dikeluarkan?"
-                },
-                options: {
-                    zh: ["子宫", "卵巢", "输卵管", "阴道"],
-                    en: ["Uterus", "Ovary", "Fallopian tube", "Vagina"],
-                    ms: ["Uterus", "Ovari", "Tiub fallopio", "Faraj"]
-                },
-                correct: 1,
-                explanation: {
-                    zh: "卵子从卵巢释放",
-                    en: "Egg is released from the ovary",
-                    ms: "Telur dikeluarkan dari ovari"
-                }
-            },
-            {
-                id: 15,
-                question: {
-                    zh: "胎儿在子宫内生长大约多长时间？",
-                    en: "How long does the fetus grow in the uterus?",
-                    ms: "Berapa lamakah janin tumbuh dalam uterus?"
-                },
-                options: {
-                    zh: ["3个月", "6个月", "9个月", "12个月"],
-                    en: ["3 months", "6 months", "9 months", "12 months"],
-                    ms: ["3 bulan", "6 bulan", "9 bulan", "12 bulan"]
-                },
-                correct: 2,
-                explanation: {
-                    zh: "胎儿在子宫内生长约9个月",
-                    en: "Fetus grows in uterus for about 9 months",
-                    ms: "Janin tumbuh dalam uterus selama kira-kira 9 bulan"
-                }
-            }
-        ];
-
-        // ==================== 对错题题库 (15题) - 每题完整三语 ====================
-        const trueFalseQuestions = [
-            { 
-                id: 16, 
-                statement: {
-                    zh: "睾丸的功能是产生卵子",
-                    en: "The function of testis is to produce eggs",
-                    ms: "Fungsi testis adalah untuk menghasilkan telur"
-                },
-                correct: false,
-                explanation: {
-                    zh: "睾丸产生精子，不是卵子",
-                    en: "Testis produces sperms, not eggs",
-                    ms: "Testis menghasilkan sperma, bukan telur"
-                }
-            },
-            { 
-                id: 17, 
-                statement: {
-                    zh: "胚胎在子宫内发育",
-                    en: "The embryo develops in the uterus",
-                    ms: "Embrio berkembang dalam uterus"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，子宫是胚胎发育的地方",
-                    en: "Correct, uterus is where embryo develops",
-                    ms: "Betul, uterus adalah tempat embrio berkembang"
-                }
-            },
-            { 
-                id: 18, 
-                statement: {
-                    zh: "周围神经系统包括脑和脊髓",
-                    en: "Peripheral nervous system includes brain and spinal cord",
-                    ms: "Sistem saraf periferi termasuk otak dan saraf tunjang"
-                },
-                correct: false,
-                explanation: {
-                    zh: "脑和脊髓属于中枢神经系统",
-                    en: "Brain and spinal cord are part of CNS",
-                    ms: "Otak dan saraf tunjang adalah sebahagian daripada SSP"
-                }
-            },
-            { 
-                id: 19, 
-                statement: {
-                    zh: "卵巢产生雌性激素",
-                    en: "Ovaries produce female hormones",
-                    ms: "Ovari menghasilkan hormon perempuan"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，卵巢产生雌性激素",
-                    en: "Correct, ovaries produce female hormones",
-                    ms: "Betul, ovari menghasilkan hormon perempuan"
-                }
-            },
-            { 
-                id: 20, 
-                statement: {
-                    zh: "阴茎是女性生殖器官",
-                    en: "Penis is a female reproductive organ",
-                    ms: "Zakar adalah organ pembiakan perempuan"
-                },
-                correct: false,
-                explanation: {
-                    zh: "阴茎是男性生殖器官",
-                    en: "Penis is a male reproductive organ",
-                    ms: "Zakar adalah organ pembiakan lelaki"
-                }
-            },
-            { 
-                id: 21, 
-                statement: {
-                    zh: "受精发生在输卵管内",
-                    en: "Fertilisation occurs in the fallopian tube",
-                    ms: "Persenyawaan berlaku dalam tiub fallopio"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，受精发生在输卵管",
-                    en: "Correct, fertilisation occurs in fallopian tube",
-                    ms: "Betul, persenyawaan berlaku dalam tiub fallopio"
-                }
-            },
-            { 
-                id: 22, 
-                statement: {
-                    zh: "精子是女性生殖细胞",
-                    en: "Sperms are female reproductive cells",
-                    ms: "Sperma adalah sel pembiakan perempuan"
-                },
-                correct: false,
-                explanation: {
-                    zh: "精子是男性生殖细胞",
-                    en: "Sperms are male reproductive cells",
-                    ms: "Sperma adalah sel pembiakan lelaki"
-                }
-            },
-            { 
-                id: 23, 
-                statement: {
-                    zh: "子宫是胎儿生长的地方",
-                    en: "Uterus is where the fetus grows",
-                    ms: "Uterus adalah tempat janin tumbuh"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，子宫是胎儿生长的地方",
-                    en: "Correct, fetus grows in uterus",
-                    ms: "Betul, janin tumbuh dalam uterus"
-                }
-            },
-            { 
-                id: 24, 
-                statement: {
-                    zh: "神经系统控制身体活动",
-                    en: "Nervous system controls body activities",
-                    ms: "Sistem saraf mengawal aktiviti badan"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，神经系统控制身体活动",
-                    en: "Correct, nervous system controls body",
-                    ms: "Betul, sistem saraf mengawal badan"
-                }
-            },
-            { 
-                id: 25, 
-                statement: {
-                    zh: "阴道是产生卵子的器官",
-                    en: "Vagina is the organ that produces eggs",
-                    ms: "Faraj adalah organ yang menghasilkan telur"
-                },
-                correct: false,
-                explanation: {
-                    zh: "卵巢产生卵子，阴道是产道",
-                    en: "Ovaries produce eggs, vagina is birth canal",
-                    ms: "Ovari menghasilkan telur, faraj adalah saluran kelahiran"
-                }
-            },
-            { 
-                id: 26, 
-                statement: {
-                    zh: "胚胎植入子宫壁",
-                    en: "Embryo implants into uterus wall",
-                    ms: "Embrio menanam ke dinding uterus"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，胚胎会植入子宫壁",
-                    en: "Correct, embryo implants into uterus wall",
-                    ms: "Betul, embrio menanam ke dinding uterus"
-                }
-            },
-            { 
-                id: 27, 
-                statement: {
-                    zh: "脊髓属于周围神经系统",
-                    en: "Spinal cord is part of peripheral nervous system",
-                    ms: "Saraf tunjang adalah sebahagian daripada sistem saraf periferi"
-                },
-                correct: false,
-                explanation: {
-                    zh: "脊髓属于中枢神经系统",
-                    en: "Spinal cord is part of central nervous system",
-                    ms: "Saraf tunjang adalah sebahagian daripada sistem saraf pusat"
-                }
-            },
-            { 
-                id: 28, 
-                statement: {
-                    zh: "繁殖对人类不重要",
-                    en: "Reproduction is not important to humans",
-                    ms: "Pembiakan tidak penting kepada manusia"
-                },
-                correct: false,
-                explanation: {
-                    zh: "繁殖很重要，确保物种延续",
-                    en: "Reproduction is important for species continuation",
-                    ms: "Pembiakan penting untuk kesinambungan spesies"
-                }
-            },
-            { 
-                id: 29, 
-                statement: {
-                    zh: "胎儿在子宫内生长约9个月",
-                    en: "Fetus grows in uterus for about 9 months",
-                    ms: "Janin tumbuh dalam uterus selama kira-kira 9 bulan"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，人类怀孕约9个月",
-                    en: "Correct, human pregnancy is about 9 months",
-                    ms: "Betul, kehamilan manusia adalah kira-kira 9 bulan"
-                }
-            },
-            { 
-                id: 30, 
-                statement: {
-                    zh: "脑是中枢神经系统的一部分",
-                    en: "Brain is part of the central nervous system",
-                    ms: "Otak adalah sebahagian daripada sistem saraf pusat"
-                },
-                correct: true,
-                explanation: {
-                    zh: "正确，脑是中枢神经系统的主要部分",
-                    en: "Correct, brain is main part of CNS",
-                    ms: "Betul, otak adalah bahagian utama SSP"
-                }
-            }
-        ];
-
-        // ==================== 连线题题库 (10题) - 每题完整三语 ====================
-        const matchingData = [
-            { 
-                id: 31, 
-                left: { zh: "睾丸", en: "Testis", ms: "Testis" }, 
-                right: { zh: "产生精子", en: "Produces sperms", ms: "Menghasilkan sperma" } 
-            },
-            { 
-                id: 32, 
-                left: { zh: "卵巢", en: "Ovary", ms: "Ovari" }, 
-                right: { zh: "产生卵子", en: "Produces eggs", ms: "Menghasilkan telur" } 
-            },
-            { 
-                id: 33, 
-                left: { zh: "输卵管", en: "Fallopian tube", ms: "Tiub fallopio" }, 
-                right: { zh: "受精场所", en: "Site of fertilisation", ms: "Tempat persenyawaan" } 
-            },
-            { 
-                id: 34, 
-                left: { zh: "子宫", en: "Uterus", ms: "Uterus" }, 
-                right: { zh: "胚胎发育", en: "Embryo development", ms: "Perkembangan embrio" } 
-            },
-            { 
-                id: 35, 
-                left: { zh: "阴茎", en: "Penis", ms: "Zakar" }, 
-                right: { zh: "排尿和输送精子", en: "Urination and sperm delivery", ms: "Kencing dan hantar sperma" } 
-            },
-            { 
-                id: 36, 
-                left: { zh: "阴道", en: "Vagina", ms: "Faraj" }, 
-                right: { zh: "产道", en: "Birth canal", ms: "Saluran kelahiran" } 
-            },
-            { 
-                id: 37, 
-                left: { zh: "脑", en: "Brain", ms: "Otak" }, 
-                right: { zh: "控制中心", en: "Control center", ms: "Pusat kawalan" } 
-            },
-            { 
-                id: 38, 
-                left: { zh: "脊髓", en: "Spinal cord", ms: "Saraf tunjang" }, 
-                right: { zh: "传递信息", en: "Transmits information", ms: "Menghantar maklumat" } 
-            },
-            { 
-                id: 39, 
-                left: { zh: "精子", en: "Sperm", ms: "Sperma" }, 
-                right: { zh: "男性生殖细胞", en: "Male reproductive cell", ms: "Sel pembiakan lelaki" } 
-            },
-            { 
-                id: 40, 
-                left: { zh: "卵子", en: "Egg", ms: "Telur" }, 
-                right: { zh: "女性生殖细胞", en: "Female reproductive cell", ms: "Sel pembiakan perempuan" } 
-            }
-        ];
-
-        // ==================== 填空题题库 (10题) - 每题完整三语 ====================
-        const fillQuestions = [
-            { 
-                id: 41, 
-                sentence: { 
-                    zh: "________ 是男性生殖细胞，________ 是女性生殖细胞。", 
-                    en: "________ are male reproductive cells, ________ are female reproductive cells.", 
-                    ms: "________ ialah sel pembiakan lelaki, ________ ialah sel pembiakan perempuan." 
-                }, 
-                answers: { zh: ["精子", "卵子"], en: ["Sperms", "Eggs"], ms: ["Sperma", "Telur"] }, 
-                blanks: 2 
-            },
-            { 
-                id: 42, 
-                sentence: { 
-                    zh: "受精卵发育成 ________，然后在 ________ 内生长。", 
-                    en: "The fertilised egg develops into ________, then grows in the ________.", 
-                    ms: "Telur yang disenyawakan berkembang menjadi ________, kemudian tumbuh dalam ________." 
-                }, 
-                answers: { zh: ["胚胎", "子宫"], en: ["embryo", "uterus"], ms: ["embrio", "uterus"] }, 
-                blanks: 2 
-            },
-            { 
-                id: 43, 
-                sentence: { 
-                    zh: "中枢神经系统由 ________ 和 ________ 组成。", 
-                    en: "The central nervous system consists of ________ and ________.", 
-                    ms: "Sistem saraf pusat terdiri daripada ________ dan ________." 
-                }, 
-                answers: { zh: ["脑", "脊髓"], en: ["brain", "spinal cord"], ms: ["otak", "saraf tunjang"] }, 
-                blanks: 2 
-            },
-            { 
-                id: 44, 
-                sentence: { 
-                    zh: "________ 连接中枢神经系统和身体各部位。", 
-                    en: "________ connects the central nervous system to the body.", 
-                    ms: "________ menyambungkan sistem saraf pusat ke badan." 
-                }, 
-                answers: { zh: ["周围神经系统"], en: ["peripheral nervous system"], ms: ["sistem saraf periferi"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 45, 
-                sentence: { 
-                    zh: "睾丸的功能是产生 ________ 和雄性激素。", 
-                    en: "The function of testis is to produce ________ and male hormones.", 
-                    ms: "Fungsi testis adalah untuk menghasilkan ________ dan hormon lelaki." 
-                }, 
-                answers: { zh: ["精子"], en: ["sperms"], ms: ["sperma"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 46, 
-                sentence: { 
-                    zh: "卵巢的功能是产生 ________ 和雌性激素。", 
-                    en: "The function of ovary is to produce ________ and female hormones.", 
-                    ms: "Fungsi ovari adalah untuk menghasilkan ________ dan hormon perempuan." 
-                }, 
-                answers: { zh: ["卵子"], en: ["eggs"], ms: ["telur"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 47, 
-                sentence: { 
-                    zh: "________ 是受精发生的场所。", 
-                    en: "________ is the site of fertilisation.", 
-                    ms: "________ adalah tempat persenyawaan berlaku." 
-                }, 
-                answers: { zh: ["输卵管"], en: ["Fallopian tube"], ms: ["Tiub fallopio"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 48, 
-                sentence: { 
-                    zh: "人类繁殖的重要性是确保 ________ 延续。", 
-                    en: "The importance of human reproduction is to ensure ________ continuation.", 
-                    ms: "Kepentingan pembiakan manusia adalah untuk memastikan ________ berterusan." 
-                }, 
-                answers: { zh: ["物种"], en: ["species"], ms: ["spesies"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 49, 
-                sentence: { 
-                    zh: "胎儿在子宫内生长约 ________ 个月。", 
-                    en: "Fetus grows in the uterus for about ________ months.", 
-                    ms: "Janin tumbuh dalam uterus selama kira-kira ________ bulan." 
-                }, 
-                answers: { zh: ["9"], en: ["9"], ms: ["9"] }, 
-                blanks: 1 
-            },
-            { 
-                id: 50, 
-                sentence: { 
-                    zh: "________ 系统控制我们的思考、记忆和身体活动。", 
-                    en: "The ________ system controls our thinking, memory and body activities.", 
-                    ms: "Sistem ________ mengawal pemikiran, ingatan dan aktiviti badan kita." 
-                }, 
-                answers: { zh: ["神经"], en: ["nervous"], ms: ["saraf"] }, 
-                blanks: 1 
-            }
-        ];
-
-        // 游戏状态
-        let currentQuestionIndex = 0;
-        let selectedOption = null;
-        let matchedPairs = [];
-        let currentQuestionId = null;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // 语言切换
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentLang = this.getAttribute('data-lang');
-                    updateGameTitles();
-                    loadGame(currentGameType);
-                });
-            });
-
-            // 游戏类型切换
-            document.querySelectorAll('.type-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
-                    this.classList.add('active');
-                    currentGameType = this.getAttribute('data-type');
-                    currentQuestionIndex = 0;
-                    matchedPairs = [];
-                    updateGameTitles();
-                    loadGame(currentGameType);
-                });
-            });
-
-            updateGameTitles();
-            loadGame('quiz');
-        });
-
-        function updateGameTitles() {
-            const titles = { quiz: "选择题", truefalse: "对错题", matching: "连线题", fill: "填空题" };
-            const enTitles = { quiz: "Multiple Choice", truefalse: "True or False", matching: "Matching", fill: "Fill in Blanks" };
-            const msTitles = { quiz: "Pilihan Berganda", truefalse: "Betul atau Salah", matching: "Padanan", fill: "Isi Tempat Kosong" };
+    """, unsafe_allow_html=True)
+    
+    # 显示当前语言题目
+    st.markdown(f"""
+    <div style="background: white; border-radius: 30px; padding: 25px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+        <h3>{q[current_lang]}</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 显示选项（三语）
+    st.markdown("### 选项 / Options / Pilihan")
+    
+    options_current = q[f'options_{current_lang}']
+    options_zh = q['options_zh']
+    options_en = q['options_en']
+    options_ms = q['options_ms']
+    
+    cols = st.columns(2)
+    for i, opt in enumerate(options_current):
+        col_idx = i % 2
+        with cols[col_idx]:
+            button_key = f"opt_{i}"
+            if st.button(f"{chr(65+i)}. {opt}\n\n📝 {options_zh[i]} | {options_en[i]} | {options_ms[i]}", 
+                         key=button_key, use_container_width=True):
+                st.session_state.selected_answer = i
+    
+    # 检查答案按钮
+    if st.button("✓ 检查答案 / Check Answer / Semak Jawapan", type="primary", use_container_width=True):
+        if st.session_state.selected_answer is not None:
+            is_correct = st.session_state.selected_answer == q['correct']
+            if is_correct:
+                st.session_state.quiz_score += 10
+                st.success(f"✅ 正确！{q[f'explanation_{current_lang}']}")
+            else:
+                correct_letter = chr(65 + q['correct'])
+                correct_text = options_current[q['correct']]
+                st.error(f"❌ 错误！正确答案是 {correct_letter}. {correct_text}\n\n{q[f'explanation_{current_lang}']}")
             
-            document.getElementById('current-game-title').innerHTML = 
-                `${titles[currentGameType]} | ${enTitles[currentGameType]} | ${msTitles[currentGameType]}`;
-            
-            let totalQ = 0;
-            if (currentGameType === 'quiz') totalQ = quizQuestions.length;
-            else if (currentGameType === 'truefalse') totalQ = trueFalseQuestions.length;
-            else if (currentGameType === 'matching') totalQ = matchingData.length;
-            else if (currentGameType === 'fill') totalQ = fillQuestions.length;
-            
-            document.getElementById('total-q').textContent = totalQ;
-            document.getElementById('current-q').textContent = currentQuestionIndex + 1;
-        }
+            st.session_state.quiz_answered = True
+        else:
+            st.warning("请先选择一个答案")
+    
+    # 下一题按钮
+    if st.session_state.quiz_answered:
+        if st.button("↪ 下一题 / Next Question / Soalan Seterusnya", use_container_width=True):
+            st.session_state.quiz_index += 1
+            st.session_state.quiz_answered = False
+            st.session_state.selected_answer = None
+            st.rerun()
 
-        function updateStats() {
-            document.getElementById('correct-count').textContent = correctAnswers;
-            document.getElementById('wrong-count').textContent = wrongAnswers;
-            document.getElementById('total-count').textContent = totalQuestions;
-            const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-            document.getElementById('percentage').textContent = percentage + '%';
-            document.getElementById('progress-bar').style.width = percentage + '%';
-        }
+else:
+    # 游戏完成
+    percentage = (st.session_state.quiz_score / (len(QUESTIONS) * 10)) * 100
+    st.balloons()
+    st.markdown(f"""
+    <div style="text-align: center; background: linear-gradient(145deg, #27ae60, #2ecc71); padding: 40px; border-radius: 50px; margin-top: 20px;">
+        <h1 style="color: white;">🎉 恭喜完成所有题目！ 🎉</h1>
+        <p style="color: white; font-size: 1.5rem;">最终得分: {st.session_state.quiz_score} / {len(QUESTIONS) * 10}</p>
+        <p style="color: white; font-size: 1.2rem;">正确率: {percentage:.1f}%</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🔄 重新开始游戏 / Restart Game / Mulakan Semula", use_container_width=True):
+        st.session_state.quiz_index = 0
+        st.session_state.quiz_score = 0
+        st.session_state.quiz_answered = False
+        st.session_state.selected_answer = None
+        st.rerun()
 
-        function recordAnswer(questionId, isCorrect) {
-            if (!answeredQuestions.has(questionId)) {
-                answeredQuestions.add(questionId);
-                totalQuestions++;
-                if (isCorrect) correctAnswers++; else wrongAnswers++;
-                updateStats();
-            }
-        }
-
-        function loadGame(type) {
-            const content = document.getElementById('game-content');
-            if (type === 'quiz') loadQuiz(content);
-            else if (type === 'truefalse') loadTrueFalse(content);
-            else if (type === 'matching') loadMatching(content);
-            else if (type === 'fill') loadFill(content);
-        }
-
-        // 选择题 - 完整三语显示
-        function loadQuiz(container) {
-            const q = quizQuestions[currentQuestionIndex];
-            currentQuestionId = q.id;
-            
-            let html = `<div class="quiz-container"><div class="question-card">`;
-            
-            // 三语题目
-            html += `<div class="question-langs">`;
-            html += `<div><div class="lang-label zh-label">🇨🇳 中文</div>${q.question.zh}</div>`;
-            html += `<div><div class="lang-label en-label">🇬🇧 English</div>${q.question.en}</div>`;
-            html += `<div><div class="lang-label ms-label">🇲🇾 Bahasa Malaysia</div>${q.question.ms}</div>`;
-            html += `</div>`;
-            
-            // 当前语言题目突出显示
-            html += `<div class="question-text">${q.question[currentLang]}</div>`;
-            
-            // 选项
-            html += `<div class="options-grid" id="quiz-options">`;
-            q.options[currentLang].forEach((opt, index) => {
-                html += `<div class="option" data-opt="${index}">
-                    ${opt}
-                    <div class="option-langs">
-                        <span>${q.options.zh[index]}</span>
-                        <span>|</span>
-                        <span>${q.options.en[index]}</span>
-                        <span>|</span>
-                        <span>${q.options.ms[index]}</span>
-                    </div>
-                </div>`;
-            });
-            html += `</div></div></div>`;
-            
-            html += `<div class="game-controls"><button class="control-btn check" id="check-quiz">✓ 检查答案</button><button class="control-btn next" id="next-quiz" disabled>↪ 下一题</button></div>`;
-            container.innerHTML = html;
-
-            document.querySelectorAll('#quiz-options .option').forEach(opt => {
-                opt.addEventListener('click', function() {
-                    document.querySelectorAll('#quiz-options .option').forEach(o => o.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedOption = parseInt(this.getAttribute('data-opt'));
-                    document.getElementById('next-quiz').disabled = false;
-                });
-            });
-
-            document.getElementById('check-quiz').addEventListener('click', checkQuiz);
-            document.getElementById('next-quiz').addEventListener('click', nextQuiz);
-        }
-
-        function checkQuiz() {
-            if (selectedOption === null) { showFeedback('请选择答案', false); return; }
-            const q = quizQuestions[currentQuestionIndex];
-            const isCorrect = selectedOption === q.correct;
-            document.querySelectorAll('#quiz-options .option').forEach((opt, index) => {
-                if (index === q.correct) opt.classList.add('correct');
-                else if (index === selectedOption && !isCorrect) opt.classList.add('wrong');
-            });
-            recordAnswer(q.id, isCorrect);
-            if (isCorrect) { score += 10; document.getElementById('score').textContent = score; }
-            showFeedback(isCorrect ? '✅ ' + q.explanation[currentLang] : '❌ ' + q.explanation[currentLang], isCorrect);
-            document.getElementById('check-quiz').disabled = true;
-        }
-
-        function nextQuiz() {
-            currentQuestionIndex = (currentQuestionIndex + 1) % quizQuestions.length;
-            selectedOption = null;
-            document.getElementById('check-quiz').disabled = false;
-            document.getElementById('current-q').textContent = currentQuestionIndex + 1;
-            loadGame('quiz');
-        }
-
-        // 对错题 - 完整三语显示
-        function loadTrueFalse(container) {
-            const q = trueFalseQuestions[currentQuestionIndex];
-            currentQuestionId = q.id;
-            
-            let html = `<div class="tf-container"><div class="tf-card">`;
-            
-            // 三语陈述
-            html += `<div class="question-langs">`;
-            html += `<div><div class="lang-label zh-label">🇨🇳 中文</div>${q.statement.zh}</div>`;
-            html += `<div><div class="lang-label en-label">🇬🇧 English</div>${q.statement.en}</div>`;
-            html += `<div><div class="lang-label ms-label">🇲🇾 Bahasa Malaysia</div>${q.statement.ms}</div>`;
-            html += `</div>`;
-            
-            // 当前语言陈述突出显示
-            html += `<div class="tf-statement">${q.statement[currentLang]}</div>`;
-            
-            html += `<div class="tf-buttons" id="tf-buttons">`;
-            html += `<button class="tf-btn true" data-value="true">✓ 正确 / True / Betul</button>`;
-            html += `<button class="tf-btn false" data-value="false">✗ 错误 / False / Salah</button>`;
-            html += `</div></div></div>`;
-            
-            html += `<div class="game-controls"><button class="control-btn check" id="check-tf">✓ 检查答案</button><button class="control-btn next" id="next-tf" disabled>↪ 下一题</button></div>`;
-            container.innerHTML = html;
-
-            let selected = null;
-            document.querySelectorAll('.tf-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selected = this.getAttribute('data-value') === 'true';
-                    document.getElementById('next-tf').disabled = false;
-                });
-            });
-
-            document.getElementById('check-tf').addEventListener('click', function() {
-                if (selected === null) { showFeedback('请选择正确或错误', false); return; }
-                const isCorrect = selected === q.correct;
-                recordAnswer(q.id, isCorrect);
-                if (isCorrect) { score += 10; document.getElementById('score').textContent = score; }
-                showFeedback(isCorrect ? '✅ ' + q.explanation[currentLang] : '❌ ' + q.explanation[currentLang], isCorrect);
-                document.getElementById('check-tf').disabled = true;
-            });
-
-            document.getElementById('next-tf').addEventListener('click', function() {
-                currentQuestionIndex = (currentQuestionIndex + 1) % trueFalseQuestions.length;
-                document.getElementById('check-tf').disabled = false;
-                document.getElementById('current-q').textContent = currentQuestionIndex + 1;
-                loadGame('truefalse');
-            });
-        }
-
-        // 连线题 - 完整三语显示
-        function loadMatching(container) {
-            const leftItems = [...matchingData].sort(() => Math.random() - 0.5);
-            const rightItems = [...matchingData].sort(() => Math.random() - 0.5);
-            matchedPairs = [];
-
-            let html = `<div class="matching-container">`;
-            
-            // 左侧列
-            html += `<div class="matching-col"><div class="col-title">器官 / Organs / Organ</div><div id="left-col">`;
-            leftItems.forEach((item) => {
-                html += `<div class="match-item" data-id="${item.id}">
-                    ${item.left[currentLang]}
-                    <div class="match-langs">
-                        <span>${item.left.zh}</span> | <span>${item.left.en}</span> | <span>${item.left.ms}</span>
-                    </div>
-                </div>`;
-            });
-            html += `</div></div>`;
-            
-            // 右侧列
-            html += `<div class="matching-col"><div class="col-title">功能 / Functions / Fungsi</div><div id="right-col">`;
-            rightItems.forEach((item) => {
-                html += `<div class="match-item" data-id="${item.id}">
-                    ${item.right[currentLang]}
-                    <div class="match-langs">
-                        <span>${item.right.zh}</span> | <span>${item.right.en}</span> | <span>${item.right.ms}</span>
-                    </div>
-                </div>`;
-            });
-            html += `</div></div></div>`;
-            
-            html += `<div class="game-controls"><button class="control-btn" id="reset-matching">↻ 重新开始</button></div>`;
-            container.innerHTML = html;
-
-            let selectedLeft = null, selectedRight = null;
-
-            document.querySelectorAll('#left-col .match-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    if (this.classList.contains('matched')) return;
-                    document.querySelectorAll('#left-col .match-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedLeft = this;
-                    if (selectedRight) checkMatch(selectedLeft, selectedRight);
-                });
-            });
-
-            document.querySelectorAll('#right-col .match-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    if (this.classList.contains('matched')) return;
-                    document.querySelectorAll('#right-col .match-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedRight = this;
-                    if (selectedLeft) checkMatch(selectedLeft, selectedRight);
-                });
-            });
-
-            function checkMatch(left, right) {
-                const leftId = left.getAttribute('data-id');
-                const rightId = right.getAttribute('data-id');
-                const isCorrect = leftId === rightId;
-
-                if (isCorrect) {
-                    left.classList.remove('selected'); right.classList.remove('selected');
-                    left.classList.add('matched'); right.classList.add('matched');
-                    matchedPairs.push(leftId);
-
-                    if (!answeredQuestions.has('match-' + leftId)) {
-                        answeredQuestions.add('match-' + leftId);
-                        correctAnswers++; totalQuestions++; updateStats();
-                    }
-
-                    score += 5; document.getElementById('score').textContent = score;
-                    showFeedback('✅ 连线正确!', true);
-
-                    if (matchedPairs.length === matchingData.length) {
-                        showFeedback('🎉 恭喜! 完成所有连线!', true);
-                        score += 20; document.getElementById('score').textContent = score;
-                    }
-                } else {
-                    if (!answeredQuestions.has('match-wrong-' + leftId + '-' + rightId)) {
-                        wrongAnswers++; totalQuestions++; updateStats();
-                        answeredQuestions.add('match-wrong-' + leftId + '-' + rightId);
-                    }
-                    showFeedback('❌ 连线错误', false);
-                }
-                selectedLeft = null; selectedRight = null;
-            }
-
-            document.getElementById('reset-matching').addEventListener('click', () => loadGame('matching'));
-        }
-
-        // 填空题 - 完整三语显示
-        function loadFill(container) {
-            const q = fillQuestions[currentQuestionIndex];
-            currentQuestionId = q.id;
-            
-            let html = `<div class="fill-container"><div class="fill-card">`;
-            
-            // 三语句子
-            html += `<div class="question-langs">`;
-            html += `<div><div class="lang-label zh-label">🇨🇳 中文</div>${q.sentence.zh}</div>`;
-            html += `<div><div class="lang-label en-label">🇬🇧 English</div>${q.sentence.en}</div>`;
-            html += `<div><div class="lang-label ms-label">🇲🇾 Bahasa Malaysia</div>${q.sentence.ms}</div>`;
-            html += `</div>`;
-            
-            // 当前语言句子突出显示
-            html += `<div class="fill-question">${formatFillSentence(q.sentence[currentLang])}</div>`;
-            html += `<div id="fill-inputs"></div>`;
-            html += `</div></div>`;
-            
-            html += `<div class="game-controls"><button class="control-btn check" id="check-fill">✓ 检查答案</button><button class="control-btn next" id="next-fill">↪ 下一题</button></div>`;
-            container.innerHTML = html;
-
-            const inputsDiv = document.getElementById('fill-inputs');
-            for (let i = 0; i < q.blanks; i++) {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'fill-input';
-                input.placeholder = `答案 ${i+1} / Answer ${i+1} / Jawapan ${i+1}`;
-                input.setAttribute('data-blank', i);
-                inputsDiv.appendChild(input);
-            }
-
-            document.getElementById('check-fill').addEventListener('click', function() {
-                const inputs = document.querySelectorAll('.fill-input');
-                const answers = q.answers[currentLang];
-                let correct = 0;
-                inputs.forEach((input, index) => {
-                    if (input.value.trim().toLowerCase() === answers[index].toLowerCase()) {
-                        input.classList.add('correct'); correct++;
-                    } else {
-                        input.classList.add('wrong');
-                        input.value = answers[index];
-                    }
-                });
-                const allCorrect = correct === q.blanks;
-                recordAnswer(q.id, allCorrect);
-                if (allCorrect) { score += 15; document.getElementById('score').textContent = score; }
-                showFeedback(allCorrect ? '✅ 完全正确!' : `❌ 答对 ${correct}/${q.blanks} 个`, allCorrect);
-                document.getElementById('check-fill').disabled = true;
-            });
-
-            document.getElementById('next-fill').addEventListener('click', function() {
-                currentQuestionIndex = (currentQuestionIndex + 1) % fillQuestions.length;
-                document.getElementById('check-fill').disabled = false;
-                document.getElementById('current-q').textContent = currentQuestionIndex + 1;
-                loadGame('fill');
-            });
-        }
-
-        function formatFillSentence(sentence) {
-            return sentence.replace(/________/g, '<span class="fill-blank">________</span>');
-        }
-
-        function showFeedback(message, isSuccess) {
-            const feedback = document.getElementById('feedback');
-            feedback.textContent = message;
-            feedback.className = 'feedback ' + (isSuccess ? 'success' : 'error') + ' show';
-            setTimeout(() => feedback.classList.remove('show'), 3000);
-        }
-    </script>
-</body>
-</html>
+# 页脚
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #666;">
+    <p>🧪 六年级科学 - 人类繁殖与神经系统 | Year 6 Science - Human Reproduction & Nervous System | Sains Tahun 6 - Pembiakan Manusia & Sistem Saraf</p>
+</div>
+""", unsafe_allow_html=True)
